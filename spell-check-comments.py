@@ -1,7 +1,27 @@
 #!/usr/bin/env python
+#
+# Copyright (c) 2017 Louis Langholtz https://github.com/louis-langholtz/
+#
+# This software is provided 'as-is', without any express or implied
+# warranty. In no event will the authors be held liable for any damages
+# arising from the use of this software.
+#
+# Permission is granted to anyone to use this software for any purpose,
+# including commercial applications, and to alter it and redistribute it
+# freely, subject to the following restrictions:
+#
+# 1. The origin of this software must not be misrepresented; you must not
+#    claim that you wrote the original software. If you use this software
+#    in a product, an acknowledgment in the product documentation would be
+#    appreciated but is not required.
+# 2. Altered source versions must be plainly marked as such, and must not be
+#    misrepresented as being the original software.
+# 3. This notice may not be removed or altered from any source distribution.
+
 # Python script requiring python 2.7
 # For python 2 documentation, see: https://docs.python.org/2/index.html
 
+# Bring in stuff that'll be used...
 import sys, subprocess, string, re, argparse, os
 
 # Function to check that given argument names a file that exists.
@@ -11,6 +31,7 @@ def extant_file(arg):
         raise argparse.ArgumentTypeError("\"{0}\" does not exist".format(arg))
     return arg
 
+# Setup some command line argument parsing...
 parser = argparse.ArgumentParser()
 parser.add_argument('-v', '--verbose',
     dest='verbose', action='store_true',
@@ -126,8 +147,10 @@ def check_file(path):
             match = re.match("^(\W*)(\w.*)$", line)
             #print("lhs=\"{0}\" rhs=\"{1}\"".format(match.group(1), match.group(2)))
             depth = match.group(1)
-            #if (skipTillNextDepth and skipTillNextDepth < len(depth)):
-            #    continue
+            if (skipTillNextDepth and skipTillNextDepth < len(depth)):
+                if cmdlineargs.verbose:
+                    print("skipping: {0}".format(line))
+                continue
             skipTillNextDepth = 0
             useful = match.group(2)
             fields = useful.split(" ", 2)
@@ -142,10 +165,12 @@ def check_file(path):
             if (nodetype == "HTMLStartTagComment"):
                 skipTillHTMLEndTagComment = True
                 continue
-            #if (nodetype == "BlockCommandComment"):
-            #    if not re.match("Name=\"sa\"$", useful):
-            #        continue
-            #    skipTillNextDepth = len(depth)
+            if (nodetype == "BlockCommandComment"):
+                if cmdlineargs.verbose:
+                    print("found: {0}".format(useful))
+                if not re.search("Name=\"sa\"", useful):
+                    continue
+                skipTillNextDepth = len(depth)
             if (nodetype != "TextComment"):
                 continue
             if cmdlineargs.verbose:
