@@ -134,8 +134,10 @@ def check_file(path):
     astlinenum = 0
     foundnum = 0
     srclinenum = 0
+    skipNextTextComment = False
     skipTillHTMLEndTagComment = False
     skipTillNextLinenum = False
+    skipFirstWord = False
     skipTillNextDepth = 0
     mispellings = 0
     with clangpipe.stdout:
@@ -160,8 +162,27 @@ def check_file(path):
             useful = match.group(2)
             fields = useful.split(" ", 2)
             if (len(fields) <= 2):
+                # Shouldn't happen but apparently it did!
                 continue
-            nodetype = fields[0]
+            nodetype = fields[0] # Like: FullComment
+            nodehex  = fields[1] # Like: 0x10f24bb30
+            nodedata = fields[2] # Like: <line:97:5, line:99:5>
+            m = re.match("<([^>]*)>\s*(.*)", nodedata)
+            if not m:
+                if cmdlineargs.verbose:
+                    print("Skipped: {0}".format(useful))
+                continue
+            locations = m.group(1).split(", ") # Ex: 'col:15, col:47'
+            data = m.group(2) # Ex: 'Text=" Computes the AABB for the given body."'
+            if (locations[0].startswith("line:")):
+                linenum = locations[0].split(":")[1]
+                #if (linenum < srclinenum):
+                #    skipTillNextLinenum = True
+                #    continue
+                srclinenum = linenum
+                skipTillNextLinenum = False
+            if skipTillNextLinenum:
+                continue
             if (nodetype == "HTMLEndTagComment"):
                 skipTillHTMLEndTagComment = False
                 continue
@@ -173,29 +194,28 @@ def check_file(path):
             if (nodetype == "BlockCommandComment"):
                 if cmdlineargs.verbose:
                     print("found: {0}".format(useful))
-                if not re.search("Name=\"sa\"", useful):
+                m = re.search("Name=\"([^\"]*)\"", useful)
+                if not m:
                     continue
-                skipTillNextDepth = len(depth)
+                cmdName = m.group(1)
+                if (cmdName == "sa") or (cmdName == "see"):
+                    skipTillNextDepth = len(depth)
+                    continue
+                if (cmdName == "throws"):
+                    skipFirstWord = True
+                    continue
+                continue
+            if (nodetype == "InlineCommandComment"):
+                if not re.search("Name=\"image\"", useful):
+                    continue
+                skipNextTextComment = True
             if (nodetype != "TextComment"):
+                continue
+            if skipNextTextComment:
+                skipNextTextComment = False
                 continue
             if cmdlineargs.verbose:
                 print(useful)
-            nodeinfo = fields[2].rstrip("\n").lstrip("<")
-            info = nodeinfo.split("> ", 1)
-            if (len(info) < 2):
-                continue
-            location = info[0]
-            locations = location.split(", ")
-            if (locations[0].startswith("line:")):
-                linenum = locations[0].split(":")[1]
-                #if (linenum < srclinenum):
-                #    skipTillNextLinenum = True
-                #    continue
-                srclinenum = linenum
-                skipTillNextLinenum = False
-            if skipTillNextLinenum:
-                continue
-            data = info[1]
             if not (data.startswith("Text=\"")):
                 continue
             #text = data.lstrip("Text=\"").rstrip("\"").lstrip(" ").lstrip(string.punctuation)
@@ -207,6 +227,9 @@ def check_file(path):
                 print(words)
             unrecognizedwords = []
             for word in words:
+                if skipFirstWord:
+                    skipFirstWord = False
+                    continue
                 word = word.strip("\"\'").lstrip("(").rstrip(")").strip(string.punctuation)
                 if not check_word(word):
                     unrecognizedwords.append(word)
