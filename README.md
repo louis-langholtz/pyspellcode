@@ -3,13 +3,13 @@ Python script for using `clang` and `hunsepll` for spell checking source code co
 
 This script parses the [AST dump](http://clang.llvm.org/docs/IntroductionToTheClangAST.html) output from `clang` and runs words found in comment nodes through `hunspell`. It's not perfect, but it's completely IDE independent. It just needs `clang` and `hunspell`. So it should be usable in continuous integration environments like [Travis CI](https://travis-ci.org).
 
-The script accepts command line arguments to fine tune what it does. These arguments are similar to what `clang` and `hunspell` use for doing things like setting which language standard to use or adding a personal dictionary file. For the most up-to-date command line argument usage, run the script with the `-h` flag.
+The script accepts command line arguments to fine tune what it does. These arguments are similar to what `clang` and `hunspell` use for doing things like setting which language standard to use or adding a personal dictionary file. Note that by default, not all comments are spell checked. Only documentation comments are checked. To check all comments (including regular, non-documentation comments), use the `--all-comments` flag (`-a` for short).
 
-For example:
+For the most up-to-date command line argument usage, run the script with the `--help` flag (`-h` for short). For example:
 ```
-$ ./spell-check.py -h
+$ ./spell-check.py --help
 usage: spell-check.py [-h] [-v] [-I <dir>] [-std=c++11] [-std=c++14]
-                      [-std=c++17] [-p <full-file-path>]
+                      [-std=c++17] [-a] [-p <full-file-path>]
                       filename [filename ...]
 
 positional arguments:
@@ -23,7 +23,8 @@ optional arguments:
   -std=c++11            Selects the C++11 language standard
   -std=c++14            Selects the C++14 language standard
   -std=c++17            Selects the C++17 language standard
+  -a, --all-comments, -fparse-all-comments
+                        Results in checking all comments
   -p <full-file-path>, --personal-dict <full-file-path>
                         specify the fullpath to a personal dictionary
-
 ```

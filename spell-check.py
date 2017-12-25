@@ -48,6 +48,9 @@ parser.add_argument('-std=c++14',
 parser.add_argument('-std=c++17',
     dest='langstd', action='store_const', const='c++17',
     help='Selects the C++17 language standard')
+parser.add_argument('-a', '--all-comments', '-fparse-all-comments',
+    dest='all_comments', action='store_true',
+    help='Results in checking all comments')
 parser.add_argument('-p', '--personal-dict',
     dest='dict', nargs=1, metavar='<full-file-path>',
     help='specify the fullpath to a personal dictionary')
@@ -75,6 +78,8 @@ files = cmdlineargs.filenames
 # -fsyntax-only tells clang to only examine syntax and to not generate object file
 clangargs = ["clang", "-Xclang", "-ast-dump", "-fsyntax-only", "-fno-color-diagnostics"]
 clangargs.append('-std=' + langstd)
+if cmdlineargs.all_comments:
+    clangargs.append('-fparse-all-comments')
 if cmdlineargs.includedirs:
     for includedirs in cmdlineargs.includedirs:
         includedir = string.join(includedirs)
