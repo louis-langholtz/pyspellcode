@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 #
-# Copyright (c) 2017 Louis Langholtz https://github.com/louis-langholtz/pyspellcode
+# Copyright (c) 2018 Louis Langholtz https://github.com/louis-langholtz/pyspellcode
 #
 # This software is provided 'as-is', without any express or implied
 # warranty. In no event will the authors be held liable for any damages
@@ -56,7 +56,10 @@ parser.add_argument('-a', '--all-comments', '-fparse-all-comments',
     help='results in checking all comments')
 parser.add_argument('-e', '-Werror', '--error-exit',
     dest='nonzero_exit_on_misspellings', action='store_true',
-    help='emits nonzero status on exit if there were unrecognized words')
+    help='nonzero exit status for unrecognized words')
+parser.add_argument('--show-file-progress',
+    dest='show_file_progress', action='store_true',
+    help='shows filenames and results even when no unrecognized words')
 parser.add_argument('-p', '--personal-dict',
     dest='dict', nargs=1, metavar='<full-file-path>',
     help='specify the fullpath to a personal dictionary')
@@ -106,9 +109,6 @@ hunspellpipe = subprocess.Popen(hunspellargs, stdin=subprocess.PIPE, stdout=subp
 hunspellpipe.stdout.readline() # read the first line from hunspell
 
 def check_word(word):
-    #print(word, file=hunspellpipe.stdin)
-    #print("checking word \"{0}\"".format(word))
-    #word = word.lstrip("\"").rstrip("\"")
     if re.search("^\W+$", word):
         return True
     if re.search("^\W", word):
@@ -118,20 +118,11 @@ def check_word(word):
     hunspellpipe.stdin.write(word + "\n")
     hunspellpipe.stdin.flush()
     isokay = True
-    #with hunspellpipe.stdout:
     for line in iter(hunspellpipe.stdout.readline, b''):
         if not line.rstrip("\n"):
             break
         if not line.startswith("*"):
             isokay = False
-    #resultline = hunspellpipe.stdout.readline()
-    #emptyline  = hunspellpipe.stdout.readline()
-    #print("      word=\"{0}\"  isokay={1}".format(word, isokay))
-    #print("resultline=\"{0}\"".format(resultline))
-    #print(" emptyline=\"{0}\"".format(emptyline))
-    #if (resultline.startswith("*")):
-    #    return True
-    #return False
     return isokay
 
 def check_file(path):
@@ -149,7 +140,10 @@ def check_file(path):
     skipFirstWord = False
     skipTillNextDepth = 0
     misspellings = 0
-    print("file {0}:".format(path))
+    filenameShown = False
+    if cmdlineargs.show_file_progress:
+        print("file {0}:".format(path))
+        filenameShown = True
     with clangpipe.stdout:
         for line in iter(clangpipe.stdout.readline, b''):
             line = line.rstrip()
@@ -246,9 +240,12 @@ def check_file(path):
                     misspellings += 1
             if not unrecognizedwords:
                 continue
+            if not filenameShown:
+                print("file {0}:".format(path))
+                filenameShown = True
             print("  line #{0}, unrecognized words: {1}".format(srclinenum, unrecognizedwords))
     clangpipe.wait() # Blocks until clang exits
-    if misspellings == 0:
+    if cmdlineargs.show_file_progress and misspellings == 0:
         print("  no unrecognized words")
     return misspellings
 
