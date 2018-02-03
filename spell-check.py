@@ -22,6 +22,7 @@
 # For python 2 documentation, see: https://docs.python.org/2/index.html
 
 # Bring in stuff that'll be used...
+from __future__ import print_function
 import sys, subprocess, string, re, argparse, os
 
 # Function to check that given argument names a file that exists.
@@ -32,25 +33,30 @@ def extant_file(arg):
     return arg
 
 # Setup some command line argument parsing...
+# Note that convention for help text is to have first letter of string as
+# lower-case and to not end with any punctuation.
 parser = argparse.ArgumentParser()
 parser.add_argument('-v', '--verbose',
     dest='verbose', action='store_true',
-    help='Gets more verbose to aid with diagnostics')
+    help='gets more verbose to aid with diagnostics')
 parser.add_argument('-I', '--include-dir',
     dest='includedirs', nargs=1, metavar='<dir>', action='append',
-    help='Add directory to include search path')
+    help='adds directory to include search path')
 parser.add_argument('-std=c++11',
     dest='langstd', action='store_const', const='c++11',
-    help='Selects the C++11 language standard')
+    help='selects the C++11 language standard')
 parser.add_argument('-std=c++14',
     dest='langstd', action='store_const', const='c++14',
-    help='Selects the C++14 language standard')
+    help='selects the C++14 language standard')
 parser.add_argument('-std=c++17',
     dest='langstd', action='store_const', const='c++17',
-    help='Selects the C++17 language standard')
+    help='selects the C++17 language standard')
 parser.add_argument('-a', '--all-comments', '-fparse-all-comments',
     dest='all_comments', action='store_true',
-    help='Results in checking all comments')
+    help='results in checking all comments')
+parser.add_argument('-e', '-Werror', '--error-exit',
+    dest='nonzero_exit_on_misspellings', action='store_true',
+    help='emits nonzero status on exit if there were unrecognized words')
 parser.add_argument('-p', '--personal-dict',
     dest='dict', nargs=1, metavar='<full-file-path>',
     help='specify the fullpath to a personal dictionary')
@@ -130,7 +136,10 @@ def check_word(word):
 
 def check_file(path):
     argsneeded = clangargs + [path]
-    clangpipe = subprocess.Popen(argsneeded, stdout=subprocess.PIPE)
+    # Note: Specifying bufsize=-1 hugely improves performance over its default!
+    # For usage details, see:
+    #   https://docs.python.org/2/library/subprocess.html#popen-constructor
+    clangpipe = subprocess.Popen(argsneeded, bufsize=-1, stdout=subprocess.PIPE)
     astlinenum = 0
     foundnum = 0
     srclinenum = 0
@@ -139,7 +148,8 @@ def check_file(path):
     skipTillNextLinenum = False
     skipFirstWord = False
     skipTillNextDepth = 0
-    mispellings = 0
+    misspellings = 0
+    print("file {0}:".format(path))
     with clangpipe.stdout:
         for line in iter(clangpipe.stdout.readline, b''):
             line = line.rstrip()
@@ -233,21 +243,23 @@ def check_file(path):
                 word = word.strip("\"\'").lstrip("(").rstrip(")").strip(string.punctuation)
                 if not check_word(word):
                     unrecognizedwords.append(word)
-                    mispellings += 1
+                    misspellings += 1
             if not unrecognizedwords:
                 continue
-            #print("line #{0},        found words: {1}".format(srclinenum, words))
-            print("line #{0}, unrecognized words: {1}".format(srclinenum, unrecognizedwords))
+            print("  line #{0}, unrecognized words: {1}".format(srclinenum, unrecognizedwords))
     clangpipe.wait() # Blocks until clang exits
-    return mispellings
+    if misspellings == 0:
+        print("  no unrecognized words")
+    return misspellings
 
-totalerrors = 0
+totalmisspellings = 0
 for file in files:
-    print("checking file {0} now".format(file))
-    totalerrors += check_file(file)
+    totalmisspellings += check_file(file)
 
 hunspellpipe.stdin.close()
 hunspellpipe.wait() # Blocks until hunspell exits
 
-if (totalerrors > 0):
+if ((totalmisspellings > 0) and cmdlineargs.nonzero_exit_on_misspellings):
     exit(1)
+
+exit(0)
