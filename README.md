@@ -1,5 +1,5 @@
 # pyspellcode
-Python script for using `clang` and `hunsepll` for spell checking source code comments.
+Python script for using `clang` and `hunspell` for spell checking source code comments.
 
 This script parses the [AST dump](http://clang.llvm.org/docs/IntroductionToTheClangAST.html) output from `clang` and runs words found in comment nodes through `hunspell`. It's not perfect, but it's completely IDE independent. It just needs `clang` and `hunspell`. So it should be usable in continuous integration environments like [Travis CI](https://travis-ci.org).
 
